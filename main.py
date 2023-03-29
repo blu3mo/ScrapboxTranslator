@@ -5,9 +5,9 @@ import openai
 import re
 import tiktoken
 
-MAX_TOKENS = 1800 # 4096 (gpt3.5 max token) - 200 (prompt) - 2000 (output)
-INPUT_PATH = "input_json/blu3mo_filtered.json"
-OUTPUT_PATH = "output_json/blu3mo_filtered.json"
+MAX_TOKENS = 1600 # 4096 (gpt3.5 max token) - 500 (prompt) - 2000 (output)
+INPUT_PATH = "input_json/test1.json"
+OUTPUT_PATH = "output_json/test1.json"
 
 PROMPT = """
 You are a language translator.
@@ -72,6 +72,7 @@ async def async_translate(session, text):
 
 async def translate_titles(session, title_list):
     translated_titles = []
+    title_chunks = []
     title_chunk = ""
 
     for title in title_list:
@@ -79,13 +80,19 @@ async def translate_titles(session, title_list):
         if tokens_count < MAX_TOKENS:
             title_chunk += title + "\n"
         else:
-            translated_chunk = await async_translate(session, title_chunk)
-            translated_titles.extend(translated_chunk.split("\n")[:-1])
+            title_chunks.append(title_chunk)
             title_chunk = title + "\n"
 
     if title_chunk:
-        translated_chunk = await async_translate(session, title_chunk)
-        translated_titles.extend(translated_chunk.split("\n")[:-1])
+        title_chunks.append(title_chunk)
+
+    # Run async_translate concurrently for all title chunks
+    translation_tasks = [async_translate(session, chunk) for chunk in title_chunks]
+    translated_chunks = await asyncio.gather(*translation_tasks)
+
+    # Combine the translated chunks into a single list
+    for chunk in translated_chunks:
+        translated_titles.extend(chunk.split("\n")[:-1])
 
     return translated_titles
 
