@@ -5,7 +5,7 @@ import openai
 import re
 import tiktoken
 
-MAX_TOKENS = 3800
+MAX_TOKENS = 1800 # 4096 (gpt3.5 max token) - 200 (prompt) - 2000 (output)
 INPUT_PATH = "input_json/blu3mo_filtered.json"
 OUTPUT_PATH = "output_json/blu3mo_filtered.json"
 
@@ -54,6 +54,7 @@ async def async_translate(session, text):
             {"role": "user", "content": text}
         ],
         "temperature": 0,
+        "max_tokens": 2000,
     }
 
     async with session.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data) as resp:
@@ -74,7 +75,7 @@ async def translate_titles(session, title_list):
     title_chunk = ""
 
     for title in title_list:
-        tokens_count = num_tokens_from_string(title_chunk + title + "\n", "cl100k_base")
+        tokens_count = num_tokens_from_string(title_chunk + title + "\n", "p50k_base")
         if tokens_count < MAX_TOKENS:
             title_chunk += title + "\n"
         else:
