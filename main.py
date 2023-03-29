@@ -4,10 +4,13 @@ import aiohttp
 import openai
 import re
 import tiktoken
+from asyncio import Semaphore
 
 MAX_TOKENS = 1600 # 4096 (gpt3.5 max token) - 500 (prompt) - 2000 (output)
-INPUT_PATH = "input_json/test1.json"
-OUTPUT_PATH = "output_json/test1.json"
+SEMAPHORE_LIMIT = 100 # not sure if this is the best limit, but at least it works
+
+INPUT_PATH = "input_json/blu3mo_filtered.json"
+OUTPUT_PATH = "output_json/blu3mo_filtered.json"
 
 PROMPT = """
 You are a language translator.
@@ -35,42 +38,47 @@ def num_tokens_from_string(string: str, encoding_name: str) -> int:
     num_tokens = len(encoding.encode(string))
     return num_tokens
 
-async def async_translate(session, text):
-    # Replace leading spaces/tabs/full width spaces with \s
-    text = re.sub(r'^([ \t　]+)', lambda m: '\\s' * len(m.group(1)), text, flags=re.MULTILINE)
+async def async_translate(session, text, sem):
+    async with sem:
+        # Replace leading spaces/tabs/full width spaces with \s
+        text = re.sub(r'^([ \t　]+)', lambda m: '\\s' * len(m.group(1)), text, flags=re.MULTILINE)
 
-    # Replace newlines with \n
-    text = text.replace('\n', '\\n')
+        # Replace newlines with \n
+        text = text.replace('\n', '\\n')
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {openai.api_key}"
-    }
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {openai.api_key}"
+        }
 
-    data = {
-        "model": "gpt-3.5-turbo",
-        "messages": [
-            {"role": "system", "content": PROMPT},
-            {"role": "user", "content": text}
-        ],
-        "temperature": 0,
-        "max_tokens": 2000,
-    }
+        data = {
+            "model": "gpt-3.5-turbo",
+            "messages": [
+                {"role": "system", "content": PROMPT},
+                {"role": "user", "content": text}
+            ],
+            "temperature": 0,
+            "max_tokens": 2000,
+        }
 
-    async with session.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data) as resp:
-        response = await resp.json()
-        print(response)
-        translated_text = response["choices"][0]["message"]["content"]
+        try:
+            async with session.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data) as resp:
+                response = await resp.json()
+                translated_text = response["choices"][0]["message"]["content"]
+        except Exception as e:
+            print(f"Error occurred while making request: {e}")
+            print(f"Data: {data}")
+            translated_text = ""
 
-    # Replace \n back to newline
-    translated_text = translated_text.replace('\\n', '\n')
+        # Replace \n back to newline
+        translated_text = translated_text.replace('\\n', '\n')
 
-    # Replace \s back to spaces
-    translated_text = re.sub(r'\\s', ' ', translated_text)
+        # Replace \s back to spaces
+        translated_text = re.sub(r'\\s', ' ', translated_text)
 
-    return translated_text
+        return translated_text
 
-async def translate_titles(session, title_list):
+async def translate_titles(session, title_list, sem):
     translated_titles = []
     title_chunks = []
     title_chunk = ""
@@ -87,19 +95,21 @@ async def translate_titles(session, title_list):
         title_chunks.append(title_chunk)
 
     # Run async_translate concurrently for all title chunks
-    translation_tasks = [async_translate(session, chunk) for chunk in title_chunks]
+    translation_tasks = [async_translate(session, chunk, sem) for chunk in title_chunks]
     translated_chunks = await asyncio.gather(*translation_tasks)
 
     # Combine the translated chunks into a single list
     for chunk in translated_chunks:
         translated_titles.extend(chunk.split("\n")[:-1])
 
+    print("Title Translation Done")
     return translated_titles
 
-async def translate_page(session, page_text):
+async def translate_page(session, page_text, sem):
+    print("Translating page batch: '" + page_text[:10] + "...'")
     token_count = num_tokens_from_string(page_text, "cl100k_base")
     if token_count <= MAX_TOKENS:
-        return await async_translate(session, page_text)
+        return await async_translate(session, page_text, sem)
     else:
         lines = page_text.split("\n")
         current_token_count = 0
@@ -115,12 +125,12 @@ async def translate_page(session, page_text):
 
         first_half = "\n".join(lines[:split_index])
         second_half = "\n".join(lines[split_index:])
-        first_half_translated = await async_translate(session, first_half)
-        second_half_translated = await translate_page(session, second_half)
+        first_half_translated = await async_translate(session, first_half, sem)
+        second_half_translated = await translate_page(session, second_half, sem)
         return first_half_translated + "\n" + second_half_translated
 
 
-async def translate_json_file(input_file, output_file):
+async def translate_json_file(input_file, output_file, sem):
     with open(input_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
@@ -130,7 +140,7 @@ async def translate_json_file(input_file, output_file):
     title_list = [page['title'] for page in data['pages']]
 
     async with aiohttp.ClientSession() as session:
-        translated_titles = await translate_titles(session, title_list)
+        translated_titles = await translate_titles(session, title_list, sem)
 
         for original_title, translated_title in zip(title_list, translated_titles):
             title_translation_dict[original_title] = translated_title
@@ -147,7 +157,7 @@ async def translate_json_file(input_file, output_file):
             for jp_title, en_title in title_translation_dict.items():
                 page_text = page_text.replace(f"{jp_title}", f"{en_title}")
 
-            translation_tasks.append(translate_page(session, page_text))
+            translation_tasks.append(translate_page(session, page_text, sem))
 
         translated_texts = await asyncio.gather(*translation_tasks)
 
@@ -158,6 +168,7 @@ async def translate_json_file(input_file, output_file):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 async def main():
-    await translate_json_file(INPUT_PATH, OUTPUT_PATH)
+    sem = Semaphore(SEMAPHORE_LIMIT)
+    await translate_json_file(INPUT_PATH, OUTPUT_PATH, sem)
 
 asyncio.run(main())
