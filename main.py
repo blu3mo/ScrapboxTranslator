@@ -2,22 +2,43 @@ import json
 import asyncio
 import aiohttp
 import openai
+import re
 
 MAX_TOKENS = 8000
 INPUT_PATH = "input_json/test1.json"
 OUTPUT_PATH = "output_json/test1_2.json"
 
 PROMPT = """
-You are a translator. 
+You are a language translator.
+Target Language: English
+
 # Task
-You get multiple texts to translate. Translate texts to English, and return translated texts.
+Translate texts from the source language to English, and output the translated texts.
+
 # Rules
-Never remove \n and newlines. You must keep the number of lines the same.
-Never remove spaces at the beginning of each line. Keep the number of spaces the same. Use spaces, not \t. 
-Brackets of [text] and [text.icon] must be kept. The content inside the bracket must never be changed.
+- Always preserve \\n and \\s.
+- Keep brackets unchanged: Brackets of [text] and [text.icon] must be kept. The content inside square brackets must never be changed.
+- Preserve markup symbols like >, `, [].
+
+# Example
+Original Text:
+[りんご]\\n\\s\\sバナナ\\n\\s\\s\\s[ダイアモンド.icon]
+
+Translated Text:
+[apple]\\n\\s\\sbanana\\n\\s\\s\\s[diamond.icon]
 """
 
-async def async_translate(session, text, role="user"):
+import re
+
+import re
+
+async def async_translate(session, text):
+    # Replace leading spaces/tabs/full width spaces with \s
+    text = re.sub(r'^([ \t　]+)', lambda m: '\\s' * len(m.group(1)), text, flags=re.MULTILINE)
+
+    # Replace newlines with \n
+    text = text.replace('\n', '\\n')
+
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {openai.api_key}"
@@ -27,14 +48,23 @@ async def async_translate(session, text, role="user"):
         "model": "gpt-3.5-turbo",
         "messages": [
             {"role": "system", "content": PROMPT},
-            {"role": role, "content": text}
-        ]
+            {"role": "user", "content": text}
+        ],
+        "temperature": 0,
     }
 
     async with session.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data) as resp:
         response = await resp.json()
         print(response)
-        return response["choices"][0]["message"]["content"]
+        translated_text = response["choices"][0]["message"]["content"]
+
+    # Replace \n back to newline
+    translated_text = translated_text.replace('\\n', '\n')
+
+    # Replace \s back to spaces
+    translated_text = re.sub(r'\\s', ' ', translated_text)
+
+    return translated_text
 
 async def translate_titles(session, title_list):
     translated_titles = []
@@ -84,12 +114,19 @@ async def translate_json_file(input_file, output_file):
             page['title'] = translated_title
 
         # Translate lines with translated titles replaced
+        translation_tasks = []
+
         for page in data['pages']:
             page_text = "\n".join(page['lines'])
 
             for jp_title, en_title in title_translation_dict.items():
-                page_text = page_text.replace(f"[{jp_title}]", f"[{en_title}]")
-            translated_text = await translate_page(session, page_text)
+                page_text = page_text.replace(f"{jp_title}", f"{en_title}")
+
+            translation_tasks.append(translate_page(session, page_text))
+
+        translated_texts = await asyncio.gather(*translation_tasks)
+
+        for page, translated_text in zip(data['pages'], translated_texts):
             page['lines'] = translated_text.split("\n")
 
     with open(output_file, 'w', encoding='utf-8') as f:
