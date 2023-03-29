@@ -3,10 +3,11 @@ import asyncio
 import aiohttp
 import openai
 import re
+import tiktoken
 
-MAX_TOKENS = 8000
-INPUT_PATH = "input_json/test1.json"
-OUTPUT_PATH = "output_json/test1_2.json"
+MAX_TOKENS = 3800
+INPUT_PATH = "input_json/blu3mo_filtered.json"
+OUTPUT_PATH = "output_json/blu3mo_filtered.json"
 
 PROMPT = """
 You are a language translator.
@@ -28,9 +29,11 @@ Translated Text:
 [apple]\\n\\s\\sbanana\\n\\s\\s\\s[diamond.icon]
 """
 
-import re
-
-import re
+def num_tokens_from_string(string: str, encoding_name: str) -> int:
+    """Returns the number of tokens in a text string."""
+    encoding = tiktoken.get_encoding(encoding_name)
+    num_tokens = len(encoding.encode(string))
+    return num_tokens
 
 async def async_translate(session, text):
     # Replace leading spaces/tabs/full width spaces with \s
@@ -71,7 +74,8 @@ async def translate_titles(session, title_list):
     title_chunk = ""
 
     for title in title_list:
-        if len(title_chunk) + len(title) + 1 < MAX_TOKENS:
+        tokens_count = num_tokens_from_string(title_chunk + title + "\n", "cl100k_base")
+        if tokens_count < MAX_TOKENS:
             title_chunk += title + "\n"
         else:
             translated_chunk = await async_translate(session, title_chunk)
@@ -85,15 +89,28 @@ async def translate_titles(session, title_list):
     return translated_titles
 
 async def translate_page(session, page_text):
-    if len(page_text) <= MAX_TOKENS:
+    token_count = num_tokens_from_string(page_text, "cl100k_base")
+    if token_count <= MAX_TOKENS:
         return await async_translate(session, page_text)
     else:
-        split_point = page_text.rfind("\n", 0, MAX_TOKENS)
-        first_half = page_text[:split_point]
-        second_half = page_text[split_point + 1:]
+        lines = page_text.split("\n")
+        current_token_count = 0
+        split_index = 0
+
+        for idx, line in enumerate(lines):
+            line_token_count = num_tokens_from_string(line, "cl100k_base")
+            if current_token_count + line_token_count >= MAX_TOKENS:
+                split_index = idx
+                break
+            else:
+                current_token_count += line_token_count
+
+        first_half = "\n".join(lines[:split_index])
+        second_half = "\n".join(lines[split_index:])
         first_half_translated = await async_translate(session, first_half)
         second_half_translated = await translate_page(session, second_half)
         return first_half_translated + "\n" + second_half_translated
+
 
 async def translate_json_file(input_file, output_file):
     with open(input_file, 'r', encoding='utf-8') as f:
@@ -132,7 +149,6 @@ async def translate_json_file(input_file, output_file):
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-# Replace 'input.json' and 'output.json' with your desired file paths
 async def main():
     await translate_json_file(INPUT_PATH, OUTPUT_PATH)
 
