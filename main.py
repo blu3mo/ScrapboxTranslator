@@ -74,7 +74,6 @@ async def async_translate(session, text, sem):
                     # Allowing ±3 line error, because it happens a lot
                     if translated_line_count < (text_line_count - 3) or (text_line_count + 3) < translated_line_count:
                         raise Exception("Wrong line count of translated text")
-                    else:
                     # Replace \n back to newline
                     translated_text = translated_text.replace('\\n', '\n')
                     # Replace \s back to spaces
