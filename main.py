@@ -4,13 +4,14 @@ import aiohttp
 import openai
 import re
 import tiktoken
+import os
 from asyncio import Semaphore
 
 MAX_TOKENS = 1300 # 4096 (gpt3.5 max token) - 500 (prompt) - 2000 (output)
 SEMAPHORE_LIMIT = 50 # not sure if this is the best limit, but at least it works
 
-INPUT_PATH = "input_json/blu3mo_filtered.json"
-OUTPUT_PATH = "output_json/blu3mo_filtered.json"
+INPUT_PATH = "input_json/test1.json"
+OUTPUT_PATH = "output_json/test1.json"
 
 PROMPT = """
 You are a language translator.
@@ -199,6 +200,7 @@ async def translate_json_file(input_file, output_file, sem):
         for page, translated_text in zip(data['pages'], translated_texts):
             page['lines'] = translated_text.split("\n")
 
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
