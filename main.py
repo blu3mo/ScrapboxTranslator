@@ -75,10 +75,10 @@ async def async_translate(session, text, sem):
                     if translated_line_count < (text_line_count - 3) or (text_line_count + 3) < translated_line_count:
                         raise Exception("Wrong line count of translated text")
                     else:
-                    # Replace \n back to newline
-                    translated_text = translated_text.replace('\\n', '\n')
-                    # Replace \s back to spaces
-                    translated_text = re.sub(r'\\s', ' ', translated_text)
+                        # Replace \n back to newline
+                        translated_text = translated_text.replace('\\n', '\n')
+                        # Replace \s back to spaces
+                        translated_text = re.sub(r'\\s', ' ', translated_text)
             except Exception as e:
                 print(f"Error occurred while making request: {e}")
                 print(f"Data: {data}")
