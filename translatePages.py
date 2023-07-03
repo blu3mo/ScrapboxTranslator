@@ -11,8 +11,10 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")
 PROMPT = """
 # Task
 Convert the style of this personal note from bullet points to cohesive easy-to-read structured paragraphs with [links] in English. 
+Input: Bullet points with links in [Brackets].
+Output: Structured English paragarphs with links in [Brackets].
 
-# Syntax
+# Input/Output Syntax
 [Brackets] are links
 [https://gyazo.com/~] are image links
 > are quotes
@@ -21,16 +23,16 @@ Convert the style of this personal note from bullet points to cohesive easy-to-r
 When you see [Brackets] and [https://gyazo.com/~], always preserve it.
 
 # Example
-Input: 
+Sample Input: 
 \"\"\"
-私は[ディープラーニング]を含むプロジェクトに取り組んでいます。
-スクリーショット：[https://gyazo.com/3d6a6de185e26530a73c7ef08a88e391]
+[ディープラーニング]の[研究]プロジェクトをやってる。
+スクリーショット：[https://gyazo.com/3d6a6de185e26530a73c7ef08a88e390]
 \"\"\"
-Output: 
+Sample Output: 
 \"\"\"
-I've been working on a project which is centred around [deep learning].
+I've been working on a [research] project which is centred around [deep learning].
 You can view the screenshot here: 
-[https://gyazo.com/3d6a6de185e26530a73c7ef08a88e391]
+[https://gyazo.com/3d6a6de185e26530a73c7ef08a88e390]
 \"\"\"
 """
 
@@ -64,8 +66,8 @@ async def fetch_page_translation(pageId, page):
     else:
         model = "gpt-3.5-turbo-16k"
         page_token_count = num_tokens_from_string(page)
-        cutoff_len = len(page) * (8000 / page_token_count)
-        print("cutoff: " + cutoff_len)
+        cutoff_len = int(len(page) * (8000 / page_token_count))
+        print("cutoff: " + str(cutoff_len))
         page = page[:cutoff_len]
     
     max_tokens = MAX_TOKENS[model]
