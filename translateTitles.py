@@ -28,25 +28,30 @@ async def fetch_title_translation(title_array_str):
         (dict): A dictionary of original titles & translated titles
         
     """
-    print(title_array_str)
-    response = await openai.ChatCompletion.acreate(
-        model=MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": PROMPT
-            },
-            {
-                "role": "user",
-                "content": title_array_str
-            }
-        ],
-        temperature=0.2,
-        max_tokens=2048
-    )
+    try:
+        response = await openai.ChatCompletion.acreate(
+            model=MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": PROMPT
+                },
+                {
+                    "role": "user",
+                    "content": title_array_str
+                }
+            ],
+            temperature=0.2,
+            max_tokens=2048
+        )
 
-    # For each returned translation, add to the translations dictionary
-    response_content = response['choices'][0]['message']['content']
-    translated_titles = json.loads(response_content)
+        # For each returned translation, add to the translations dictionary
+        response_content = response['choices'][0]['message']['content']
+        translated_titles = json.loads(response_content)
 
-    return translated_titles
+        return translated_titles
+    except Exception as e:
+        print("Error in fetch_title_translation")
+        print(e)
+        # Create dictionary of {original_titles: original_titles}
+        return {title: title for title in json.loads(title_array_str)}

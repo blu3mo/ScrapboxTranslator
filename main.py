@@ -34,12 +34,13 @@ async def translate_titles(titles):
 
     translations = {}
 
+    print(f"Translation of {len(titles)} titles started.")
+
     # prepare a list of tasks to run concurrently
     tasks = []
     for title_array in split_title_arrays:
         # convert array to string in JSON format
         title_array_str = json.dumps(title_array, ensure_ascii=False)
-
         tasks.append(fetch_title_translation(title_array_str))
 
     # await on all tasks to finish concurrently
@@ -49,6 +50,8 @@ async def translate_titles(titles):
     for translated_titles in results:
         for original, translated in translated_titles.items():
             translations[original] = translated
+
+    print(f"Translation of {len(titles)} titles completed.")
 
     return translations
 
@@ -65,11 +68,13 @@ async def translate_pages(pages):
     translations = {}
     tasks = []
     
+    print(f"Translation of {len(pages)} pages started.")
+
     sleep_duration = 60 / (90000 / 4000)
     # 90000 token per min. 4000 token per request. 90000/4000 = 22.5 requests per min. 60/22.5 = 2.67 sec per request
 
     for pageId, page in pages.items():
-        # run the translation in async and wait for 1 sec
+        # run the translation in async and wait for sleep_duration
         tasks.append(asyncio.create_task(fetch_page_translation(pageId, page)))
         await asyncio.sleep(sleep_duration) 
 
@@ -78,9 +83,13 @@ async def translate_pages(pages):
     for task in tasks:
         await task  # Wait for task to complete
         results.append(task.result())  # Get the task's result
-        
+        translate_page_trunctaed = task.result()[1][:25].replace('\n', ' ') + "..."
+        print(f"({len(results)}/{len(pages)}) Translation completed: {translate_page_trunctaed}")
+
     for (pageId, translatedPage) in results:
         translations[pageId] = translatedPage
+
+    print(f"Translation of {len(pages)} pages completed.")
 
     return translations
 
@@ -99,30 +108,31 @@ async def main():
     for page in input_json["pages"]:
         pages[page["id"]] = '\n'.join(page["lines"])
     
-    # for each pages, replace all occurences of links to other pages with the translated title
+    # for each pages, replace all occurrences of links to other pages with the translated title
     for pageId, page in pages.items():
+        print("Replacing links in page " + page[:15].replace('\n', ' ') + "...")
         for title in translated_titles:
-            print(title + " " + translated_titles[title])
             page = re.sub(r'\[{}\]'.format(title), "[" + translated_titles[title] + "]", page)
         pages[pageId] = page
-        print("after: " + page)
-        print("dict: " + pages[pageId])
 
     # translate the list of pages. obtain list of pages
     translated_pages = await translate_pages(pages)
-    print(translated_pages)
 
     output_json = input_json
     # replace original pages with translated pages
     for page in output_json["pages"]:
-        old_title = page["title"]
         pageId = page["id"]
+        old_title = page["title"]
         page["title"] = translated_titles[old_title]
-        page["lines"] = translated_pages[pageId].split('\n') # Split the translated page back into lines
+        page["lines"] = (translated_pages[pageId] or "").split('\n') # Split the translated page back into lines
         page["lines"].insert(0, translated_titles[old_title]) # Insert the translated title as the first line
+
+    print("Final translations are ready. Writing them into the output JSON file.")
 
     # write output json
     with open(OUTPUT_PATH, "w") as f:
         json.dump(output_json, f, indent=4)
+
+    print("Output JSON file written successfully.")
 
 asyncio.run(main())

@@ -6,8 +6,6 @@ import tiktoken
 import asyncio
 from util import num_tokens_from_string
 
-openai.api_key = os.environ.get("OPENAI_API_KEY")
-
 PROMPT = """
 # Task
 Convert the style of this personal note from bullet points to cohesive easy-to-read structured paragraphs with [links] in English. 
@@ -59,22 +57,21 @@ async def fetch_page_translation(pageId, page):
 
     token_count = num_tokens_from_string(page)
     model = ""
-    if token_count <= 1900:
+    if token_count <= 1800:
         model = "gpt-3.5-turbo"
-    elif 2000 < token_count <= 8000:
+    elif 1800 < token_count <= 7000:
         model = "gpt-3.5-turbo-16k"
     else:
         model = "gpt-3.5-turbo-16k"
         page_token_count = num_tokens_from_string(page)
-        cutoff_len = int(len(page) * (8000 / page_token_count))
+        cutoff_len = int(len(page) * (7000 / page_token_count))
         print("cutoff: " + str(cutoff_len))
         page = page[:cutoff_len]
     
     max_tokens = MAX_TOKENS[model]
 
-    print("Fetch Translation: " + page[:15].replace('\n', ' ') + "...")
     try:
-        print("Sending OpenAI API Call...")
+        print("Fetch Translation: " + page[:25].replace('\n', ' ') + "...")
         response = await openai.ChatCompletion.acreate(
             model=model,
             messages=[
@@ -90,11 +87,10 @@ async def fetch_page_translation(pageId, page):
             temperature=0,
             max_tokens=max_tokens
         )
-
         translated_page = response['choices'][0]['message']['content']
 
         return (pageId, translated_page)
     except Exception as e:
-        print("Error with OpenAI API Call: " + page[:15].replace('\n', ' ') + "...")
+        print("Error in fetch_page_translation: " + page[:25].replace('\n', ' ') + "...")
         print(e)
         return (pageId, page)
