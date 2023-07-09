@@ -10,7 +10,7 @@ from translateTitles import fetch_title_translation
 from translatePages import fetch_page_translation
 from util import split_titles
 
-INPUT_FILE = "input/brainoid.json"
+INPUT_FILE = "input/blu3mo.json"
 OUTPUT_DIR = "output"
 
 def num_tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> int:
@@ -22,7 +22,7 @@ def num_tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> i
 async def translate_titles(titles):
     """
     Translates a list of titles from OpenAI API
-    
+
     Args:
         titles (list): A list of titles to be translated
 
@@ -36,17 +36,20 @@ async def translate_titles(titles):
 
     print(f"Translation of {len(titles)} titles started.")
 
-    # prepare a list of tasks to run concurrently
+    sleep_duration = 60 / (90000 / 4000)  # same logic as in translate_pages function
+
     tasks = []
     for title_array in split_title_arrays:
         # convert array to string in JSON format
         title_array_str = json.dumps(title_array, ensure_ascii=False)
-        tasks.append(fetch_title_translation(title_array_str))
+        tasks.append(asyncio.create_task(fetch_title_translation(title_array_str)))
+        await asyncio.sleep(sleep_duration)
 
-    # await on all tasks to finish concurrently
-    results = await asyncio.gather(*tasks)
+    results = []
+    for task in tasks:
+        await task  # Wait for task to complete
+        results.append(task.result())  # Get the task's result
 
-    # process results
     for translated_titles in results:
         for original, translated in translated_titles.items():
             translations[original] = translated

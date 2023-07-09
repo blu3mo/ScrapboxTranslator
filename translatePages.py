@@ -73,7 +73,6 @@ async def fetch_page_translation(pageId, page):
         global translation_start_count
         print("(#" + str(translation_start_count) + ") Starting Page Translation: " + page[:25].replace('\n', ' ') + "...")
         translation_start_count += 1
-        print(generate_system_prompt(get_links(page)))
         response = await openai.ChatCompletion.acreate(
             model=model,
             messages=[
