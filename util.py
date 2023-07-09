@@ -1,4 +1,5 @@
 import tiktoken
+import re
 
 def num_tokens_from_string(string: str) -> int:
     """Returns the number of tokens in a text string."""
@@ -36,3 +37,9 @@ def split_titles(titles, max_tokens):
         split_title_arrays.append(current_title_set)
 
     return split_title_arrays
+
+def get_links(str):
+    pattern = r'\[(.*?)\]'
+    matches = re.findall(pattern, str)
+    matches = [match for match in matches if not match.endswith(".icon")]
+    return matches

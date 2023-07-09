@@ -5,10 +5,14 @@ import json
 import aiohttp
 import tiktoken
 from util import num_tokens_from_string
+from dotenv import load_dotenv
+
+load_dotenv()
 
 MODEL = "gpt-3.5-turbo"
 
-PROMPT = """
+def generate_system_prompt():
+    return """
 Translate the given page titles to English.
 Input: JSON array of page titles.
 Output: JSON dictionary of original titles & translated titles.
@@ -34,7 +38,7 @@ async def fetch_title_translation(title_array_str):
             messages=[
                 {
                     "role": "system",
-                    "content": PROMPT
+                    "content": generate_system_prompt()
                 },
                 {
                     "role": "user",

@@ -1,3 +1,4 @@
 aiohttp
 openai
 tiktoken
+python-dotenv
