@@ -10,8 +10,8 @@ from translateTitles import fetch_title_translation
 from translatePages import fetch_page_translation
 from util import split_titles
 
-INPUT_PATH = "input_json/blu3mo-sample.json"
-OUTPUT_PATH = "output_json/output.json"
+INPUT_FILE = "input/brainoid.json"
+OUTPUT_DIR = "output"
 
 def num_tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> int:
     """Returns the number of tokens in a text string."""
@@ -83,8 +83,6 @@ async def translate_pages(pages):
     for task in tasks:
         await task  # Wait for task to complete
         results.append(task.result())  # Get the task's result
-        translate_page_trunctaed = task.result()[1][:25].replace('\n', ' ') + "..."
-        print(f"({len(results)}/{len(pages)}) Translation completed: {translate_page_trunctaed}")
 
     for (pageId, translatedPage) in results:
         translations[pageId] = translatedPage
@@ -95,7 +93,7 @@ async def translate_pages(pages):
 
 async def main():
     # read input json
-    with open(INPUT_PATH, "r") as f:
+    with open(INPUT_FILE, "r") as f:
         input_json = json.load(f)
 
     # translate the list of titles. obtain dictionary of original titles to translated titles
@@ -129,9 +127,16 @@ async def main():
 
     print("Final translations are ready. Writing them into the output JSON file.")
 
+    # make a new directiroy of OUTPUT_DIR if it doesn't exist
+    if not os.path.exists(OUTPUT_DIR):
+        os.makedirs(OUTPUT_DIR)
+
+    # get input file name
+    input_file_name = INPUT_FILE.split('/')[-1]
+
     # write output json
-    with open(OUTPUT_PATH, "w") as f:
-        json.dump(output_json, f, indent=4)
+    with open(f"{OUTPUT_DIR}/{input_file_name}", "w") as f:
+        json.dump(output_json, f, ensure_ascii=False, indent=4)
 
     print("Output JSON file written successfully.")
 
