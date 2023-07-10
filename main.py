@@ -2,7 +2,6 @@ import json
 import asyncio
 import aiohttp
 import openai
-import re
 import tiktoken
 import os
 from asyncio import Semaphore
@@ -10,7 +9,7 @@ from translateTitles import fetch_title_translation
 from translatePages import fetch_page_translation
 from util import split_titles
 
-INPUT_FILE = "input/blu3mo.json"
+INPUT_FILE = "input/brainoid.json"
 OUTPUT_DIR = "output"
 
 def num_tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> int:
@@ -113,7 +112,7 @@ async def main():
     for pageId, page in pages.items():
         print("Replacing links in page " + page[:15].replace('\n', ' ') + "...")
         for title in translated_titles:
-            page = re.sub(r'\[{}\]'.format(title), "[" + translated_titles[title] + "]", page)
+            page = page.replace('[{}]'.format(title), '[' + translated_titles[title] + ']')
         pages[pageId] = page
 
     # translate the list of pages. obtain list of pages
