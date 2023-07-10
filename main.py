@@ -12,6 +12,9 @@ from util import split_titles
 INPUT_FILE = "input/blu3mo-public.json"
 OUTPUT_DIR = "output"
 
+SLEEP_DURATION = 60 / (90000 / 4000)
+# 90000 token per min. 4000 token per request. 90000/4000 = 22.5 requests per min. 60/22.5 = 2.67 sec per request
+
 def num_tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> int:
     """Returns the number of tokens in a text string."""
     encoding = tiktoken.get_encoding(encoding_name)
@@ -35,14 +38,12 @@ async def translate_titles(titles):
 
     print(f"Translation of {len(titles)} titles started.")
 
-    sleep_duration = 60 / (90000 / 4000)  # same logic as in translate_pages function
-
     tasks = []
     for title_array in split_title_arrays:
         # convert array to string in JSON format
         title_array_str = json.dumps(title_array, ensure_ascii=False)
         tasks.append(asyncio.create_task(fetch_title_translation(title_array_str)))
-        await asyncio.sleep(sleep_duration)
+        await asyncio.sleep(SLEEP_DURATION)
 
     results = []
     for task in tasks:
@@ -72,13 +73,10 @@ async def translate_pages(pages):
     
     print(f"Translation of {len(pages)} pages started.")
 
-    sleep_duration = 60 / (90000 / 4000)
-    # 90000 token per min. 4000 token per request. 90000/4000 = 22.5 requests per min. 60/22.5 = 2.67 sec per request
-
     for pageId, page in pages.items():
         # run the translation in async and wait for sleep_duration
         tasks.append(asyncio.create_task(fetch_page_translation(pageId, page)))
-        await asyncio.sleep(sleep_duration) 
+        await asyncio.sleep(SLEEP_DURATION) 
 
     # gather all the tasks
     results = []
