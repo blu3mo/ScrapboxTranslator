@@ -56,17 +56,19 @@ async def fetch_page_translation(pageId, page, max_retries=3):
     temperature = 0
 
     for attempt in range(max_retries):
+        system_prompt = generate_system_prompt(get_links(page))
+        prompt_token_count = num_tokens_from_string(system_prompt)
         token_count = num_tokens_from_string(page)
         model = ""
-        if token_count <= 1800:
+        if token_count <= 2048 - prompt_token_count - 100:
             model = "gpt-3.5-turbo"
-        elif 1800 < token_count <= 7000:
+        elif token_count <= 8192 - prompt_token_count - 100:
             model = "gpt-3.5-turbo-16k"
         else:
             model = "gpt-3.5-turbo-16k"
             page_token_count = num_tokens_from_string(page)
-            cutoff_len = int(len(page) * (7000 / page_token_count))
-            print("cutoff: " + str(cutoff_len))
+            cutoff_len = int(len(page) * ((8192 - prompt_token_count - 100) / page_token_count))
+            print("Page too long, cutting off: " + page[:25].replace('\n', ' ') + "...")
             page = page[:cutoff_len]
         
         max_tokens = MAX_TOKENS[model]

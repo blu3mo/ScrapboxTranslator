@@ -9,7 +9,7 @@ from translateTitles import fetch_title_translation
 from translatePages import fetch_page_translation
 from util import split_titles
 
-INPUT_FILE = "input/brainoid.json"
+INPUT_FILE = "input/blu3mo-public.json"
 OUTPUT_DIR = "output"
 
 def num_tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> int:
@@ -31,7 +31,7 @@ async def translate_titles(titles):
     max_tokens = 800
     split_title_arrays = split_titles(titles, max_tokens)
 
-    translations = {}
+    translations = {title: title for title in titles}
 
     print(f"Translation of {len(titles)} titles started.")
 
