@@ -3,10 +3,10 @@ Translate scrapbox project json file to English.
 ## Usage
 1. Set `OPENAI_API_KEY` envrionmental variable in your computer.
 ([How to set your API key](https://qiita.com/LingmuSajun/items/8ac6b016e0ecc864851e))
-2. Export scrapbox json file. Do NOT check "Include metadata such as line.created and line.updated."
+2. Export scrapbox json file at scrapbox.io. Do NOT check "Include metadata such as line.created and line.updated."
 3. Edit `INPUT_PATH` variable in the code to load your exported json file.
 ```
-INPUT_PATH = "input_json/test1.json"
+INPUT_PATH = "input/sample.json"
 ```
 4. Run the script
 ```
