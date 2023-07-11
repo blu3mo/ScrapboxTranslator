@@ -7,9 +7,9 @@ import os
 from asyncio import Semaphore
 from translateTitles import fetch_title_translation
 from translatePages import fetch_page_translation
-from util import split_titles
+from util import split_titles, get_links
 
-INPUT_FILE = "input/blu3mo-public.json"
+INPUT_FILE = "input/brainoid.json"
 OUTPUT_DIR = "output"
 
 SLEEP_DURATION = 60 / (90000 / 4000)
@@ -96,15 +96,23 @@ async def main():
     with open(INPUT_FILE, "r") as f:
         input_json = json.load(f)
 
-    # translate the list of titles. obtain dictionary of original titles to translated titles
-    titles = [page["title"] for page in input_json["pages"]]
-    translated_titles = await translate_titles(titles)
-    print(translated_titles)
-
     # Join lines in each page into a single string, and create a dictionary of pageId and string
     pages = {}
     for page in input_json["pages"]:
         pages[page["id"]] = '\n'.join(page["lines"])
+
+    # translate the list of titles. obtain dictionary of original titles to translated titles
+    titles = []
+    for page in input_json["pages"]:
+        titles.append(page["title"])
+    for page in pages.values():
+        titles.extend(get_links(page))
+    # remove duplicates
+    titles = list(set(titles))
+    print(titles)
+
+    translated_titles = await translate_titles(titles)
+    print(translated_titles)
     
     # for each pages, replace all occurrences of links to other pages with the translated title
     for pageId, page in pages.items():

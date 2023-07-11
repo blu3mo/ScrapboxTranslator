@@ -42,4 +42,5 @@ def get_links(str):
     pattern = r'\[(.*?)\]'
     matches = re.findall(pattern, str)
     matches = [match for match in matches if not match.endswith(".icon")]
+    matches = [match for match in matches if not match.startswith("/")]
     return matches
