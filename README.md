@@ -5,7 +5,7 @@ Translate scrapbox project json file to English.
 2. Set `OPENAI_API_KEY` envrionmental variable in your computer.
 ([How to set your API key](https://qiita.com/LingmuSajun/items/8ac6b016e0ecc864851e))
 
-## Usage
+## How to Use
 1. Export your project as json file at scrapbox.io. Do NOT check "Include metadata such as line.created and line.updated."
 2. Edit `INPUT_PATH` variable in the code to load your exported json file.
 ```
