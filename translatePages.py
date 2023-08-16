@@ -9,10 +9,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def generate_system_prompt(links):
-    prompt_str = """
+def generate_system_prompt(page, links):
+    paragraph_conversion_prompt = """
 # Task
 Convert the style of this personal note from bullet points to cohesive easy-to-read structured paragraphs with [keywords] in English. 
+
+[Keywords] in the input are in square brackets, so all in the output must be in square brackets too. 
+
+Links like [https://gyazo.com/~] in the input are in square brackets, so all in the output must be in square brackets too. 
+
+# Output Rules 
+Include all the keywords and links below in the output. Translate non-English keywords to English.
+"""
+
+    only_translation_prompt = """
+# Task
+Translate the content to English with [keywords]. 
 
 [Keywords] in the input are in square brackets, so all in the output must be in square brackets too. 
 
@@ -25,6 +37,12 @@ Include all the keywords and links below in the output. Translate non-English ke
     links_str = ""
     for link in links:
         links_str += "[" + link + "]\n"
+
+    # if the page over 200 char, tell LLM to do the style conversion
+    if len(page) < 200:
+        prompt_str = only_translation_prompt
+    else:
+        prompt_str = paragraph_conversion_prompt
 
     return prompt_str + "\n" + links_str
 
@@ -82,7 +100,7 @@ async def fetch_page_translation(pageId, page, max_retries=3):
                 messages=[
                     {
                         "role": "system",
-                        "content": generate_system_prompt(get_links(page))
+                        "content": generate_system_prompt(page, get_links(page))
                     },
                     {
                         "role": "user",

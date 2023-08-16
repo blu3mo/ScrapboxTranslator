@@ -87,6 +87,11 @@ async def translate_pages(pages):
     for (pageId, translatedPage) in results:
         translations[pageId] = translatedPage
 
+    # For each title, truncate if the length exceeds 240 char
+    for title, translated_title in translations.items():
+        if len(translated_title) > 240:
+            translations[title] = translated_title[:240]
+
     print(f"Translation of {len(pages)} pages completed.")
 
     return translations
